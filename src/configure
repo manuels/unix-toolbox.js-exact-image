@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+. config/functions
+
+with_options="x11 freetype evas libjpeg libtiff libpng libungif jasper openexr expat lcms bardecode lua swig perl python php ruby"
+
+feature_options="evasgl tga pcx static"
+TGA=1 # default to yes
+PCX=1
+
+PACKAGE="exact-image"
+VERSION_MAJOR=0
+VERSION_MINOR=8
+VERSION_MICRO=8
+
+init
+
+prefix="/usr/local"
+
+parse_options $*
+
+compile c++ available.c || status_error \
+	"A C++ compiler is not installed or does not work correctly.
+A C++ compiler is vital for exact-image - so you need to install it first."
+
+compile c++ stl.c template.c template-specialization.c \
+        partial-template-specialization.c function-template.c \
+        || status_error \
+	"At least one of the advanced ANSI C++ tests failed. Since these
+features are vital for exact-image you need to update to a more recent compiler first."
+
+headercheck c++ iostream string iostream sstream fstream || \
+	status_error "Not all tested STL headers are present - please install them."
+
+pkgcheck x11 compile X11 atleast 11.0
+pkgcheck libagg pkg-config LIBAGG atleast 2.3 || status_error \
+	"Anti-Grain Geometry was not found, since it is vital
+(for vector objects and text) obtained it from: www.antigrain.com"
+
+# latest tested, even older ones /might/ work -ReneR
+if ! pkgcheck freetype2 pkg-config FREETYPE atleast 9.5.0; then
+	cat <<-EOT
+
+		Freetype2 was not found - font rendering is disabled.
+		Freetype2 can be obtained from: www.freetype.org
+
+EOT
+fi
+
+if ! pkgcheck evas pkg-config EVAS atleast 0.9.9; then
+	cat <<-EOT
+
+		Enlightenment Evas was not found - edisplay is disabled.
+		Evas can be obtained from: www.enlightenment.org
+
+EOT
+fi
+
+if headercheck "cc $EVASINCS " "Evas_Engine_GL_X11.h"
+then EVASGL=1
+else EVASGL=0
+fi
+
+pkgcheck libjpeg header LIBJPEG cc jconfig.h
+pkgcheck libtiff header LIBTIFF c++ tiffconf.h tiffio.h # tiffio.hxx
+pkgcheck libpng pkg-config LIBPNG atleast 1.2
+pkgcheck libungif header LIBUNGIF c++ gif_lib.h
+pkgcheck jasper header JASPER c++ jasper/jasper.h
+if pkgcheck expat header EXPAT c++ expat.h; then # just for the SVG parser
+	var_append EXPATLIBS " " "-lexpat"
+fi
+
+pkgcheck OpenEXR pkg-config OPENEXR atleast 1.2.0
+#pkgcheck libopenraw-1.0 pkg-config LIBOPENRAW atleast 0.0.5
+pkgcheck lcms pkg-config LCMS atleast 1.10
+
+# this is PROPERITARY SOFTWARE - only use this if you have to ...
+if pkgcheck bardecode shell BARDECODE \
+    '[ -e external/bardecode.a -a -e external/barcode.h ] && echo yes'; then
+    var_append BARDECODEINCS " " "-I external"
+    var_append BARDECODELIBS " " "external/bardecode.a"
+else
+	cat <<-EOT
+		For optional, proprietary barcode recognition, place it in 'external/'.
+
+EOT
+fi
+
+# due to swig-1.3.32/Lib/perl5/perlstrings.swg:FromCharPtrAndSize fix -ReneR
+pkgcheck swig shell SWIG 'swig -version 2>/dev/null | sed -n "s/SWIG Version \(.*\)/\1/p"' atleast 1.3.32
+
+# supported swig target languages so far
+
+pkgcheck lua pkg-config LUA atleast 5.1
+
+pkgcheck perl shell PERL 'perl -version 2>/dev/null | sed -n "s/This is perl.*v\([0-9.]*\).*built.*/\1/p"' atleast 5.8.0 &&
+	PERLINCS="`perl -MExtUtils::Embed -e ccopts`"
+
+pkgcheck php -config PHP atleast 5.2.0 &&
+	PHPINCS="`php-config --includes`"
+
+pkgcheck python shell PYTHON 'python -V 2>&1 | sed -n "s/Python //p"' atleast 2.5.0 &&
+	PYTHONINCS="`python-config --includes`"
+
+pkgcheck ruby shell RUBY 'ruby --version 2>/dev/null | sed -n "s/ruby \([^ ]*\) .*/\1/p"' atleast 1.8.5 &&
+	RUBYINCS="-I/usr/lib64/ruby/1.8/x86_64-linux" # FIXME
+
+save

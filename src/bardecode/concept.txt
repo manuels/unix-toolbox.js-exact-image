@@ -1,0 +1,153 @@
+/*
+ * Copyright (C) 2007 - 2008 Lars Kuhtz, ExactCODE GmbH Germany.
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2. A copy of the GNU General
+ * Public License can be found in the file LICENSE.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANT-
+ * ABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * Alternatively, commercial licensing options are available from the
+ * copyright holder ExactCODE GmbH Germany.
+ */
+
+IDEAS:
+
+* calculate threshold dynamically: try to identify edges (or different
+  more or less constant levels) put the threshold inbetween.
+  * Try mean of bar code region (look ahead and adjust threshold)
+  * Try median of bar code region
+
+* Try to compensate single "flipped bits" (local noise: far to narrow
+  for a bar and no vertical continuity (but see also vertical interpolation)
+
+* Use a different metric on interpolation that considers more the media
+  (majority vote) or at least rules out extrem deviations
+
+* Compute angle (using first bar) and adjust vertical interpolation by 
+  advancing/ delaying the iterators.
+
+=====================================================================
+Tokenizer:
+split each line into tokens. A token is a pair
+(bool,uint) that consist of the color (white=0 or black=1)
+and the length (nr. of sequential pixels that have that color).
+
+Modulizer:
+Translates tokens into modules
+(Requires initialization: unit value, etc.)
+
+Line Scanner:
+Identifies barcodes (or partial rotated barcodes) on a single line
+(Requires initialization by a valid Modulizer)
+
+Vertical Matcher:
+* concatenates partial codes
+* Does consistency checks (height, quiet zone, layout, etc.)
+* Identifies line matches that belong to the same code
+
+Semantic Checker:
+* Check consistency with repect to the content of the code.
+
+The vertial matcher should be optional.
+The semantic checker will not be implemented in the near future.
+
+=====================================================================
+The whole scanning can be performed a second time on an image that
+is rotated by 90 deg. Depending on the format it might be useful
+to scan at 180 and 270 deg. as well. For the most common codes
+UPC-A and derivates this is not necessary because of parity encoding.
+
+=====================================================================
+Tokenizer:
+
+* Stateless
+
+=====================================================================
+Modulizer:
+
+* Translate tokens into modules which is simply a bit (0 is white, 1 is black).
+* It gets a token and splits it into modules
+* length-check are fuzzy with respect to the specification of the barcode type
+* Has different modes
+  * Depends on unit
+  * barcode type (fuzzyness)
+
+* Common Init pattern:
+  * Get quiet-zone (white,q)
+  * Get first black token and compute unit from it (according to code type)
+    --> Hopefully all start markes for all codes start with a 1-module bar!!!
+  * Check size of q
+  * Choose mode
+
+* Maintains some general properties of the barcode, like number of
+  black/white modules, unit width, quiet-zone size, absolut position
+  (in pixel) 
+
+====================================================================
+Line Scanner:
+
+* Internal State (infinit, well bounded by the length of a line/ counter automaton)
+
+* Translate sequence of modules into symbols
+  * Depends on the barcode type
+  * Depends on the internal state
+    (Alphabet, parity, middle mark, etc.)
+
+* Collects a code depeneden number of modules into a module_word.
+
+* Does consitency check on the module_word: e.g. First module is 1,
+  last module is 0.
+
+* Depending on the barcode type, parity, middle mark, alphabet, etc.
+  different matcher (statically optimized tables) are dynamically
+  attached to the scanner.
+
+* Depending on barcode type a certain number of modules are joined and
+  passed as a whole to the translation table.
+
+* Encoding: a bitvector. We use uint16_t which should suffice for all codes
+
+  Let (x_i)_{0 \leq i \leq n} be a module_word (bitvector). Then for all valid
+  symbols of all codes x_0 = 1 and x_n = 0. Hence we only use (x_i)_{1 \leq i \leq n-1}
+  for looking up the symbol.
+
+  We use unit16_t. The largest code (code128) uses 11-bit module_word. Hence for
+  the lookup we use 9 bit. The leading 16-(n-1) bits are filled up with zeros.
+  Hence it suffices for code128 to allocate an array (of char) of size 512.
+
+  This way we gain constant lookup time. Alternatively we can save memory and use
+  a binary lookup in an uint16_t indexed map.
+  
+
+* Postprocessing:
+  * Checksums
+  * Evalutate parity information
+    * order of symbols
+    * EAN-13: first symbol
+
+* Datastructure:
+  std::vector< std::pair<char,bool> > where uint stores the symbol and
+  bool stores the parity.
+
+* Translation Tables:
+  Input: uint_32
+  Output: std::pair<char,bool> (symbol,parity)
+  Matching: via hash?
+            via switch?
+            via BTree?
+  --> First approach: std::map<uint_32, std::pair<char,bool> >
+
+
+Questions:
+* Is the start sequence unique to identfy the barcode-type
+* Shall we use a regular expression engine for the fixed size codes
+* For variable length codes we can use a regular expression engine as well.
+  However, do these engines allow for arbitrary return parameters?
+* Shall we compile all types into one automaton or shall we provide a single
+  automaton for each type (or both)?
+* Shall we use a generator or hardcode the automaton by hand?

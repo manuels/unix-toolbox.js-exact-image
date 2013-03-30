@@ -1,0 +1,68 @@
+
+* crash on 0 byte input?
+* eimport
+* cut and resave in edisplay
+
+ - GRAY, RGB, CMYK, YUV iterators with bit fields specified
+ - SVG text tag, styles, def refs (e.g. text pathes, styles)
+ - black / white- point
+
+Array subscription, ala:
+image[][]
+
+type inside the image: RGB, YUV, CMYK, palette (direct, without expansion on load)
+
+ - cheap copies
+ - copy on write
+ - sub-images
+ - shear
+ - rotate by double shear
+
+Loaders:
+ - palette saving
+ - gzip / bzip2 / ... compressed streams
+ - http:// et al (libcurl or so?)
+ - 2 and 4 bit TIFF "imperfect"
+
+General:
+ - Exif, XMP and ordinary, classic comment support 
+
+Algorithms:
+ - rgb_A_ iterator and thus scaling, rotation
+ - faster and ddt scaling!
+ - descreen
+ - blur
+ - sharp, unsharp
+ - all the others
+ - affine transforms
+ - 2D Baccode recognition: Datamatrix, Semacode, BeeTagg and QR 
+
+Colorspaces:
+ - more generic but faster and let all algorithms use it in the most generic form
+ - RGBA
+ - float, double support
+ - CMYK
+ - YUV
+ - sRGB vs. Adobe RGB
+ - ...
+
++  /*
++     Basic colorspace: GRAY, GRAYA, RGB, RGBA, CMYK, YUV, YUVA
++     Bit depth:        INT1 INT2 INT4        INT8 INT16 INT32 FLOAT32 FLOAT64
++   */
+
+   uint8_t* getRawData () const;
+   uint8_t* getRawDataEnd () const;
+
+
+Frontends:
+ - edentify:
+   - more complete
+ - econvert:
+   - seperate channels
+ - edisplay:
+   - browsing
+   - thumbnailing
+   - slideshow
+   - partial decoding on load
+   - faster zooming

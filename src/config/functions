@@ -1,0 +1,522 @@
+
+# Initalization
+#
+prefixes="prefix exec-prefix"
+dirs="bin sbin libexec data sysconf sharedstate localstatedir \
+      lib include info man"
+
+with_options=""
+feature_options=""
+
+# saved shell / Makefile config
+save_make=""
+# saved to a config.h
+save_h=""
+
+# Append to a variable.
+#	var_append var seperator content
+#
+var_append() {
+  eval "[ \"\$$1\" ] && $1=\"\${$1}$2\"" || true
+  eval "$1=\"\${$1}\$3\""
+}
+
+# Prepend to a variable.
+#	var_insert var seperator content
+#
+var_insert() {
+  eval "[ \"\$$1\" ] && $1=\"$2\$$1\"" || true
+  eval "$1=\"\$3\$$1\""
+}
+
+# Remove from a variable.
+#	var_remove var seperator content
+#
+var_remove() {
+  local a=${2//\/\\/}
+  local b=${3//\/\\/}
+  eval '[ "$'$1'" = "$3" ] && '$1'="" || true'
+  eval $1'="${'$1'//$a$b$a/$2}"'
+  eval $1'="${'$1'%$a$b}"'
+  eval $1'="${'$1'#$b$a}"'
+}
+
+# Test for a key in a give "array".
+#	in_list key values
+#
+in_list () {
+	search=$1 ; shift
+	while [ "$1" ] ; do
+	  [ "$1" = "$search" ] && return 0
+	  shift
+	done
+	return 1
+}
+
+# Uppercase given argument.
+#	uppercase text
+#
+uppercase () {
+	echo $1 | tr '\-a-z' _A-Z
+}
+
+# Remove dashes ('-') from a given argument.
+#	undash text
+#
+undash () {
+	echo $1 | tr '\-' _
+}
+
+# Compare version with a given comperator.
+#	check_version [ atleast, equals ] expected-version current-version
+#
+check_version () {
+  m="$1"
+  shouldbe="`echo "$2" | sed 's/[._-]/ /g'`"
+  is="`echo "$3" | sed 's/[. -]/ /g'`"
+
+  # better ideas welcome -ReneR
+  set -- $shouldbe
+  case $m in
+	atleast)
+	  for x in $is ; do
+		if [ "$1" -a "$x" ]; then
+			[ $x -lt $1 ] && return 1
+			[ $x -gt $1 ] && return 0
+		fi
+		shift
+	  done
+	  ;;
+	equals)
+	  for x in $is ; do
+		[ "$1" = "$x" ] || return 1
+		shift
+	  done
+	  ;;
+	*)
+	  status "mode $m invalid"
+	  return 1
+  esac
+  return 0
+}
+
+# Generate and print a generic usage text.
+#
+usage () {
+  cat <<- EOT
+'configure' configures checks the system and adapts the package to
+many kinds of systems.
+
+This is a rewritten 'configure' system created by ExactCODE.
+It differs significantly from the typical GNU/Autoconf!g
+(C) 2004 - 2006 Rene Rebe <rene@exactcode.de> - License: GPL
+
+Usage: ./configure [OPTION]...
+
+Defaults for the options are specified in brackets.
+
+Configuration:
+  -h, --help             display this help and exit
+  -V, --version          display version information and exit
+
+Fine tuning of the installation directories:
+  --bindir=DIR           user executables [EPREFIX/bin]
+  --sbindir=DIR          system admin executables [EPREFIX/sbin]
+  --libexecdir=DIR       program executables [EPREFIX/libexec]
+  --datadir=DIR          read-only architecture-independent data [PREFIX/share]
+  --sysconfdir=DIR       read-only single-machine data [PREFIX/etc]
+  --sharedstatedir=DIR   modifiable architecture-independent data [PREFIX/com]
+  --localstatedir=DIR    modifiable single-machine data [PREFIX/var]
+  --libdir=DIR           object code libraries [EPREFIX/lib]
+  --includedir=DIR       C header files [PREFIX/include]
+  --infodir=DIR          info documentation [PREFIX/info]
+  --mandir=DIR           man documentation [PREFIX/man]
+
+Optional Features:
+  --disable-FEATURE      do not include FEATURE (same as --enable-FEATURE=no)
+  --enable-FEATURE[=ARG] include FEATURE [ARG=yes]
+EOT
+
+  for x in $feature_options ; do
+	echo "  --enable-$x"
+  done
+
+  cat <<- EOT
+
+Optional Packages:
+  --with-PACKAGE[=ARG]   use PACKAGE [ARG=yes]
+  --without-PACKAGE      do not use PACKAGE (same as --with-PACKAGE=no)
+EOT
+
+  for x in $with_options ; do
+	echo "  --with-$x"
+  done
+
+  if [ "$feature_options" -o "$with_options" ] ; then
+	if [ -f ./README -o -f ./INSTALL ] ; then
+	  cat <<- EOT
+
+Please refer to a supplied README or INSTALL file for a detailed explanation
+of the various custom options.
+
+EOT
+	else
+	  cat <<- EOT
+
+Please refer to the package documentation for a detailed exmplanation of the
+various custom options.
+EOT
+	fi
+  fi
+}
+
+# Initialize some internal stage.
+#
+init () {
+  [ "$VERSION" ] || VERSION="$VERSION_MAJOR.$VERSION_MINOR.$VERSION_MICRO"
+  [ "$DATE" ] || DATE="`date "+%a, %d %b %Y"`"
+
+  prefix="/usr/local"
+  exec_prefix="\${prefix}"
+
+  bindir="\${exec_prefix}/bin"
+  sbindir="\${exec_prefix}/sbin"
+  libdir="\${exec_prefix}/lib"
+  libexecdir="\${exec_prefix}/lib"
+  datadir="\${prefix}/share"
+  sysconfdir="\${prefix}/etc"
+  sharedstatedir="\${prefix}/com"
+  localstatedirdir="\${prefix}/var"
+  includedir="\${prefix}/include"
+  infodir="\${prefix}/info"
+  mandir="\${prefix}/man"
+
+  save_make="prefix exec_prefix PACKAGE VERSION VERSION_MAJOR VERSION_MINOR \
+             VERSION_MICRO DATE"
+  save_h="PACKAGE VERSION VERSION_MAJOR VERSION_MINOR \
+          VERSION_MICRO DATE"
+
+  # set to be saved options and features
+  for x in $dirs ; do
+	var_append save_make " " "${x}dir"
+  done
+
+  for x in $with_options ; do
+	var_append save_make " " "WITH$(uppercase $x)"
+	var_append save_h " " "WITH$(uppercase $x)"
+  done
+
+  for x in $feature_options ; do
+	var_append save_make " " "$(uppercase $x)"
+	var_append save_h " " "$(uppercase $x)"
+  done
+}
+
+# Save the state to a config.make and/or config.h.
+#
+save () {
+  # initilize the config files
+  echo -n "" > config.log 
+  echo -n "" > config.make
+  echo -n "" > config.h
+
+  for x in $save_make ; do
+	eval echo "$x = \$$x | sed -e 's/{/(/g' -e 's/}/)/g' " >> config.make
+  done
+
+  for x in $save_h ; do
+	# decide whether to quote the value
+	if [ "`eval echo \\$$x | sed s/[0-9]*//g`" = "" ] ; then
+	  eval echo "\#define $x \$$x" >> config.h
+	else
+	  eval echo "\#define $x \\\"\$$x\\\"" >> config.h
+	fi
+  done
+}
+
+# Parse the the specified command line switches.
+#
+parse_options () {
+  errors=0
+  while [ "$1" ] ; do
+	case "$1" in
+	  --without-*)
+		pkg=${1/--without-}
+		if in_list $pkg $with_options ; then
+		  eval WITH$(uppercase $pkg)=0
+		else
+		  echo "'$pkg' is not available!"
+		  : $(( ++errors ))
+		fi ;;
+	  --with-*)
+		pkg=${1/--with-}
+		[[ $pkg = *=* ]] && value=${pkg/*=/} || value=1
+		pkg=${pkg/=*/}
+		if in_list $pkg $with_options ; then
+		  [ "$value" = "no" ] && value=0
+		  eval WITH$(uppercase $pkg)=$value
+		else
+		  echo "'$pkg' is not available!"
+		  : $(( ++errors ))
+		fi ;;
+	  --enable-*)
+		feature=${1/--enable-}
+		if in_list $feature $feature_options ; then
+		  eval $(uppercase $feature)=1
+		else
+		  echo "'$feature' is not available!"
+		  : $(( ++errors ))
+		fi ;;
+	  --disable-*)
+		feature=${1/--disable-}
+		if in_list $feature $feature_options ; then
+		  eval $(uppercase $feature)=0
+		else
+		  echo "'$feature' is not available!"
+		  : $(( ++errors ))
+		fi ;;
+	  --*prefix=*)
+		prefix=${1/--}
+		value=${prefix/*=/}
+		prefix=${prefix/=*/}
+		if in_list $prefix $prefixes ; then
+		  eval $(undash $prefix)="$value"
+		else
+		  echo "'$prefix' is not a valid prefix specification!"
+		  : $(( ++errors ))
+		fi ;;
+	  --*dir=*)
+		dir=${1/--}
+		value=${dir/*=/}
+		xdir=${dir/dir=*/}
+		dir=${dir/=*/}
+		if in_list ${xdir} $dirs ; then
+		  eval $(undash $dir)="$value"
+		else
+		  echo "'$dir' is not a valid directory specification!"
+		  : $(( ++errors ))
+		fi ;;
+	  --help)
+		usage
+		exit 0
+		;;
+	  *)
+		echo "Unable to parse $1 ..."
+		: $(( ++errors ))
+		;;
+	esac
+	shift
+  done
+  if [ $errors -gt 0 ] ; then
+	echo "Errors while parsing arguements, exitting now!"
+	usage
+	exit $errors
+  fi
+}
+
+# Print a status (to screen and log).
+#
+status () {
+  echo -n "$*" | tee -a config.log
+}
+
+# Print a final status result (to screen and log).
+#
+status_result () {
+  echo "$*" | tee -a config.log
+}
+
+# Print a fatal error (to screen and log) and exit.
+#
+status_error () {
+  status_result "$*"
+  exit 1
+}
+
+# Run a predefined test stored in config/test-$test.
+#
+runtest () {
+  local file="./config/test-$1"
+  if [ ! -f $file ] ; then
+	status_result "test $1 not found!"
+  else
+	desc="`grep DESC= $file | sed 's/.*DESC="\(.*\)".*/\1/'`"
+	status "$desc ... "
+	if sh -e $file >/dev/null 2>> config.log ; then
+	  status_result "yes"
+	  eval $2=1
+	else
+	  status_result "no"
+	  eval $2=0
+	fi
+  fi
+}
+
+# Compile a test stored in config/$prog-$test.
+#	compile program test
+#
+compile () {
+  local errors=0
+  local PROG="$1" ; shift
+
+  while [ "$1" ] ; do
+	local file="config/$PROG-$1"
+	if [ ! -f $file ] ; then
+	  status_result "test $1 not found!"
+	  : $(( ++errors ))
+	else
+	  desc="`grep DESC= $file | sed 's/.*DESC="\(.*\)".*/\1/'`"
+	  cflags="`grep CFLAGS= $file | sed 's/.* CFLAGS="\(.*\)".*/\1/'`"
+	  libs="`grep LIBS= $file | sed 's/.* LIBS="\(.*\)".*/\1/'`"
+	  status "$desc ... "
+	  if $PROG -c $cflags $libs $file -o config.tmp \
+	     >/dev/null 2>> config.log ; then
+		status_result "yes"
+	  else
+		status_result "no"
+		: $(( ++errors ))
+	  fi
+	fi
+	shift
+  done
+  return $errors
+}
+
+# Check for a given system header.
+#	headercheck program header
+#
+headercheck () {
+  local errors=0
+  local PROG="$1" ; shift
+  while [ "$1" ] ; do
+	echo "#include <$1>" > conftest.c
+	status "checking for header "$1" ... "
+	if $PROG -E conftest.c >/dev/null 2>> config.log ; then
+	  status_result "found"
+	else
+	  status_result "not found"
+	  : $(( ++errors ))
+	fi
+	shift
+  done
+  return $errors
+}
+
+# Check whether the specifid package is installed.
+#	pkgcheck pkg pkg 'mode' PKG-WITH-VAR [ 'mode' flags ] [ atleast, ... ] [ version ]
+# e.g:	pkgcheck pkg -config          PKG atleast     0.9.9
+#
+pkgcheck () {
+  local pkg="$1" ; shift
+  local mode="$1" ; shift
+  local FLAGSVAR="$1" ; shift
+
+  if [ $mode = lib -o $mode = header ]; then
+	local prg="$1"; shift
+	local args="$*"; shift $#
+  elif [ $mode = shell ]; then
+	local script="$1"; shift
+  fi
+
+  [ "$1" ] && local vermode="$1" ; shift
+  [ "$1" ] && local version="$1" ; shift
+
+  local found=0
+  local ver=""
+  local incs=""
+  local libs=""
+
+  status "checking for package $pkg "
+  [ "$version" ] && status "($vermode $version)"
+  status " ... "
+
+  withvar="WITH$FLAGSVAR"
+  if [ "`eval echo \\$$withvar`" = "0" ] ; then
+	status_result "disabled"
+	return 1
+  fi
+
+  case "$mode" in
+	compile)
+		local file="config/pkgcheck-$pkg.c"
+		if [ ! -e $file ] ; then
+		  status_result "test not found!"
+		else
+		  cc="`grep CC= $file | sed 's/.*CC="\(.*\)".*/\1/'`"
+		  incs="`grep CFLAGS= $file | sed 's/.* CFLAGS="\(.*\)".*/\1/'`"
+		  libs="`grep LIBS= $file | sed 's/.* LIBS="\(.*\)".*/\1/'`"
+		  if $cc $incs $libs $file -o conftest.o \
+		           >>config.log 2>> config.log ; then
+			found=1
+			ver="`./conftest.o 2>>config.log`"
+		  fi
+		fi
+		;;
+	-config)
+		ver="`$pkg-config --version 2>/dev/null`"
+		if [ $? = 0 -a "$ver" != "" ] ; then
+		  incs="`$pkg-config --cflags`"
+		  libs="`$pkg-config --libs`"
+		  found=1
+		fi
+		;;
+	pkg-config)
+		ver="`pkg-config $pkg --modversion 2>/dev/null`"
+		if [ $? = 0 -a "$ver" != "" ] ; then
+		  incs="`pkg-config $pkg --cflags`"
+		  libs="`pkg-config $pkg --libs`"
+		  found=1
+		fi
+		;;
+	lib)
+		echo "int main () { return 0; }" > conftest.c
+		if $prg $args conftest.c -o conftest.o 2> /dev/null ; then
+		  found=1
+		  libs="$arg" # TODO: is this perfect?
+		fi
+		;;
+	header)
+		echo "" > conftest.c
+		for h in $args; do echo "#include <$h>" >> conftest.c ; done
+		echo "int main () { return 0; }" >> conftest.c
+		if $prg conftest.c -o conftest.o 2> /dev/null ; then
+		  found=1
+		fi
+		;;
+	shell)
+		ver="`eval $script`"
+		if [ "$ver" ]; then
+		  found=1
+		fi
+		;;
+	*)
+		status_error "mode $mode unknown!"
+  esac
+
+  # version check
+  if [ $found = 1 ]; then
+    if [ "$version" ] ; then
+	if check_version "$vermode" "$version" "$ver" ; then
+	  status_result "yes ($ver)"
+	else
+	  status_result "no ($ver)"
+	  found=0
+	fi
+    else
+	status_result "yes"
+    fi
+  else
+    status_result "no"
+  fi
+
+  # set WITH var (if it was not set -> optional package)
+  [ "`eval echo \\$$withvar`" = "" ] && eval $withvar=$found
+  [ $found = 0 ] && return 1
+
+  # fill variables
+  var_append ${FLAGSVAR}INCS " " "$incs"
+  var_append ${FLAGSVAR}LIBS " " "$libs"
+  var_append save_make " " "${FLAGSVAR}INCS ${FLAGSVAR}LIBS"
+  return 0
+}
+

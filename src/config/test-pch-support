@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# DESC="checking for PCH support"
+
+cat > conftest.hh <<- EOT
+
+class foo {
+	int a;
+};
+
+EOT
+
+cc conftest.hh
+

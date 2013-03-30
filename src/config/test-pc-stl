@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# DESC="checking for precompiled STL"
+
+cat > conftest.cc <<- EOT
+
+#include <bits/stdc++.h>
+
+int main () {
+	std::cout << "STL PC" << std::endl;
+	return 0;
+}
+EOT
+
+cc -Winvalid-pch conftest.cc
+

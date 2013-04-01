@@ -23,6 +23,7 @@
    $Date: 2008/12/02 01:50:56 $
  */
 
+#include <arpa/inet.h>
 #if 0
 #define VERSION "8.89"
 

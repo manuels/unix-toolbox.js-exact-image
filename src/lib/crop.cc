@@ -19,9 +19,7 @@
 #include <string.h> // memmove
 #include <iostream>
 #include <algorithm>
-#ifndef _MSC_VER
 #include <vector>
-#endif
 
 #include "Image.hh"
 #include "Codecs.hh"

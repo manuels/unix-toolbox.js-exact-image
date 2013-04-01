@@ -13,7 +13,9 @@ CXXFLAGS = -Wall -O2 -Wno-sign-compare
 #CXXFLAGS = -Wall -O0 -ggdb
 
 # for config.h
-CPPFLAGS += -I .
+CPPFLAGS += -I . -I ../antigraingeometry/src/include
+CPPFLAGS += -I ../libjpeg/src
+CPPFLAGS += -DHAVEJPEG=1 -D_MSC_VER -DWITHLIBJPEG=1
 
 # -frename-registers and -funroll-loops brings a lot performance on
 # my AMD Turion - about 20% time decrease (though it is included in -funroll-loops anyway) !!!

@@ -18,6 +18,7 @@
 
 #include <string.h> // memset
 
+#include <vector>
 #include <cmath>
 #include <iostream>
 #include <algorithm>

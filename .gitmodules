@@ -1,0 +1,12 @@
+[submodule "antigraingeometry"]
+	path = antigraingeometry
+	url = ../antigraingeometry
+[submodule "libjpeg"]
+	path = libjpeg
+	url = ../libjpeg
+[submodule "zlib"]
+	path = zlib
+	url = ../zlib
+[submodule "toolbox-base"]
+	path = toolbox-base
+	url = ../../base

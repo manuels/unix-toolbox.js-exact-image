@@ -1,0 +1,15 @@
+<html>
+  <body>
+    <script src="../toolbox-base/interface.js"></script>
+
+    <script>
+      var interface = new Interface('../bardecode-worker.js');
+      interface.on_stdout = function(x) { console.log(x); };
+      interface.on_stderr = function(x) { console.log(x); };
+
+      interface.addUrl('./barcode.jpg', '/').then(function() {
+        interface.run('/barcode.jpg').then(function() { console.log(arguments); });
+      })
+    </script>
+  </body>
+</html>

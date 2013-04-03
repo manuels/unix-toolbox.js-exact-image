@@ -6,7 +6,12 @@
     (if you use your mobile phone, you can use the camera)<br />
     <input accept="image/jpeg;capture=camera" id="barcode_file" type="file" />
 
-    <div id="barcode" />
+    <button id="demo">
+      Try this barcode:
+      <img src="barcode.jpg" width="150" />
+    </button>
+
+    <b id="barcode" />
 
     <script src="../toolbox-base/interface.js"></script>
 
@@ -14,6 +19,14 @@
       var interface = new Interface('../bardecode-worker.js');
       interface.on_stdout = function(x) { document.getElementById('barcode').appendChild(document.createTextNode('result: '+x)); };
       interface.on_stderr = function(x) { console.log(x); };
+
+      document.getElementById('demo').onclick = function(e) {
+        document.getElementById('barcode').appendChild(document.createTextNode('running...'));
+
+        interface.addUrl('demo/barcode.jpg', '/barcode2.jpg').then(function() {
+          interface.run('/barcode2.jpg').then(function() { console.log(arguments); });
+        })
+      }
 
       document.getElementById('barcode_file').onchange = function(e) {
         var file = e.target.files[0];

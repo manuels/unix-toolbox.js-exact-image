@@ -1,12 +1,12 @@
 [submodule "antigraingeometry"]
 	path = antigraingeometry
-	url = git@github.com:manuels/unix-toolbox.js-antigraingeometry.git
+	url = git://github.com/manuels/unix-toolbox.js-antigraingeometry.git
 [submodule "libjpeg"]
 	path = libjpeg
-	url = git@github.com:manuels/unix-toolbox.js-libjpeg.git
+	url = git://github.com/manuels/unix-toolbox.js-libjpeg.git
 [submodule "zlib"]
 	path = zlib
-	url = git@github.com:manuels/unix-toolbox.js-zlib.git
+	url = git://github.com/manuels/unix-toolbox.js-zlib.git
 [submodule "toolbox-base"]
 	path = toolbox-base
-	url = git@github.com:manuels/unix-toolbox.js-base.git
+	url = git://github.com/manuels/unix-toolbox.js-base.git

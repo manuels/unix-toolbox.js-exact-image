@@ -1,15 +1,31 @@
 <html>
   <body>
+    Select a jpeg file with a bar code<br />
+    (if you use your mobile phone, you can use the camera)<br />
+    <input accept="image/jpeg;capture=camera" id="barcode_file" type="file" />
+
+    <div id="barcode" />
+
     <script src="../toolbox-base/interface.js"></script>
 
     <script>
       var interface = new Interface('../bardecode-worker.js');
-      interface.on_stdout = function(x) { console.log(x); };
+      interface.on_stdout = function(x) { document.getElementById('barcode').appendChild(document.createTextNode('result: '+x)); };
       interface.on_stderr = function(x) { console.log(x); };
 
-      interface.addUrl('./barcode.jpg', '/').then(function() {
-        interface.run('/barcode.jpg').then(function() { console.log(arguments); });
-      })
+      document.getElementById('barcode_file').onchange = function(e) {
+        var file = e.target.files[0];
+        var reader = new FileReader();
+
+        document.getElementById('barcode').appendChild(document.createTextNode('running...'));
+
+        reader.onload = function(ev) {
+          interface.addData(ev.target.result, '/barcode.jpg').then(function() {
+            interface.run('/barcode.jpg').then(function() { console.log(arguments); });
+          })
+        };
+        reader.readAsBinaryString(file);
+     };
     </script>
   </body>
 </html>
